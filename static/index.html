@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能记忆问答助手 Agent</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--pri:#6366f1;--pri-h:#4f46e5;--pri-bg:#eef2ff;--pri-soft:#c7d2fe;
+--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--border-l:#f1f5f9;
+--t1:#0f172a;--t2:#475569;--t3:#94a3b8;
+--ok:#10b981;--ok-bg:#ecfdf5;--err:#ef4444;--err-bg:#fef2f2;
+--warn:#f59e0b;--sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+--sh-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.05);
+--sh-lg:0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -4px rgba(0,0,0,.04);
+--r:12px;--r-lg:16px;--r-full:9999px;
+}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t1);height:100vh;display:flex;flex-direction:column}
+
+/* ===== Header ===== */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.header-brand{display:flex;align-items:center;gap:10px}
+.header-logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--pri),#a78bfa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700}
+.header-title{font-size:16px;font-weight:700;color:var(--t1)}
+.header-sub{font-size:11px;color:var(--t3);margin-top:1px}
+.header-actions{display:flex;align-items:center;gap:8px}
+.user-badge{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--r-full);background:var(--pri-bg);color:var(--pri);font-size:13px;font-weight:500}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--pri);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.btn{padding:6px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--card);color:var(--t2);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.btn:hover{background:var(--bg);border-color:var(--pri-soft)}
+.btn-pri{background:var(--pri);color:#fff;border-color:var(--pri)}
+.btn-pri:hover{background:var(--pri-h)}
+.btn-sm{padding:4px 10px;font-size:12px}
+
+/* ===== Main Layout ===== */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ===== Sidebar ===== */
+.sidebar{width:300px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.side-tabs{display:flex;padding:16px 16px 0;gap:4px}
+.side-tab{flex:1;padding:8px 0;text-align:center;font-size:12px;font-weight:600;color:var(--t3);border-radius:8px;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.5px}
+.side-tab:hover{color:var(--t2);background:var(--pri-bg)}
+.side-tab.active{color:var(--pri);background:var(--pri-bg)}
+.side-body{flex:1;overflow-y:auto;padding:12px 16px}
+.side-footer{padding:12px 16px;border-top:1px solid var(--border)}
+
+/* File card */
+.file-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;transition:all .2s;cursor:default}
+.file-card:hover{border-color:var(--pri-soft);box-shadow:var(--sh);transform:translateY(-1px)}
+.file-card-top{display:flex;align-items:center;justify-content:space-between}
+.file-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.file-icon.txt{background:#dbeafe;color:#3b82f6}
+.file-icon.pdf{background:#fee2e2;color:#ef4444}
+.file-icon.docx{background:#dbeafe;color:#2563eb}
+.file-icon.md{background:#f0fdf4;color:#16a34a}
+.file-icon.pptx{background:#fef3c7;color:#d97706}
+.file-icon.png,.file-icon.jpg,.file-icon.jpeg,.file-icon.bmp,.file-icon.webp{background:#fce7f3;color:#db2777}
+.file-icon.default{background:var(--bg);color:var(--t3)}
+.file-info{flex:1;margin-left:10px;min-width:0}
+.file-name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-meta{font-size:11px;color:var(--t3);margin-top:2px}
+.file-del{background:none;border:none;color:var(--t3);cursor:pointer;padding:4px;border-radius:4px;font-size:14px;transition:all .15s;flex-shrink:0}
+.file-del:hover{color:var(--err);background:var(--err-bg)}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r-lg);padding:24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)}
+.upload-zone:hover{border-color:var(--pri);background:var(--pri-bg)}
+.upload-zone.dragover{border-color:var(--pri);background:var(--pri-bg);transform:scale(1.01)}
+.upload-icon{font-size:28px;margin-bottom:8px;opacity:.5}
+.upload-text{font-size:13px;color:var(--t2)}
+.upload-text small{display:block;margin-top:4px;color:var(--t3)}
+.upload-progress{margin-top:12px;font-size:12px;color:var(--pri);font-weight:500}
+
+/* Memory card */
+.mem-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:8px}
+.mem-type{display:inline-block;padding:2px 8px;border-radius:var(--r-full);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.mem-type.fact{background:var(--ok-bg);color:var(--ok)}
+.mem-type.preference{background:#fef3c7;color:#b45309}
+.mem-type.event{background:#dbeafe;color:#2563eb}
+.mem-type.general{background:var(--bg);color:var(--t3)}
+.mem-content{font-size:13px;line-height:1.5}
+.mem-time{font-size:11px;color:var(--t3);margin-top:4px}
+
+/* ===== Chat Area ===== */
+.chat-area{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.chat-messages{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:20px}
+.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--t3)}
+.chat-empty-icon{width:80px;height:80px;border-radius:50%;background:var(--pri-bg);display:flex;align-items:center;justify-content:center;font-size:36px}
+.chat-empty h3{color:var(--t2);font-size:16px;font-weight:600}
+.chat-empty p{font-size:13px;max-width:320px;text-align:center;line-height:1.6}
+
+/* Message bubble */
+.msg{display:flex;gap:10px;max-width:75%;animation:msgIn .3s ease}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.msg-avatar{width:34px;height:34px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
+.msg.user .msg-avatar{background:linear-gradient(135deg,var(--pri),#818cf8);color:#fff;font-weight:700;font-size:13px}
+.msg.bot .msg-avatar{background:linear-gradient(135deg,var(--ok),#34d399);color:#fff;font-size:15px}
+.msg-bubble{padding:12px 16px;border-radius:var(--r-lg);font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.msg.user .msg-bubble{background:var(--pri);color:#fff;border-bottom-right-radius:4px}
+.msg.bot .msg-bubble{background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px;box-shadow:var(--sh)}
+.msg.system .msg-bubble{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:var(--r)}
+.msg.system{align-self:center;max-width:90%}
+
+.typing{display:flex;gap:4px;padding:4px 0}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--t3);animation:bounce .6s infinite alternate}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+
+@keyframes bounce{0%{opacity:.3;transform:translateY(0)}100%{opacity:1;transform:translateY(-4px)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== Input Area ===== */
+.chat-input{padding:16px 32px 20px;background:var(--bg)}
+.chat-input-inner{display:flex;gap:10px;align-items:flex-end;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:6px;box-shadow:var(--sh);transition:border-color .2s,box-shadow .2s}
+.chat-input-inner:focus-within{border-color:var(--pri);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.chat-input-inner textarea{flex:1;border:none;outline:none;padding:8px 12px;font-size:14px;font-family:inherit;resize:none;min-height:24px;max-height:140px;background:transparent;line-height:1.5}
+.send-btn{width:40px;height:40px;border-radius:var(--r);background:var(--pri);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.send-btn:hover:not(:disabled){background:var(--pri-h);transform:scale(1.05)}
+.send-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.send-btn svg{width:18px;height:18px}
+
+/* ===== Auth Modal ===== */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;animation:fadeIn .2s}
+.overlay-card{background:var(--card);border-radius:var(--r-lg);padding:36px;width:400px;box-shadow:var(--sh-lg);animation:slideUp .3s ease}
+.overlay-card h2{font-size:20px;font-weight:700;margin-bottom:4px}
+.overlay-card .subtitle{font-size:13px;color:var(--t3);margin-bottom:24px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.field input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--r);font-size:14px;outline:none;transition:all .2s;background:var(--bg)}
+.field input:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(99,102,241,.1);background:var(--card)}
+.auth-btn{width:100%;padding:12px;background:var(--pri);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:8px}
+.auth-btn:hover:not(:disabled){background:var(--pri-h)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-switch{text-align:center;margin-top:20px;font-size:13px;color:var(--t3)}
+.auth-switch a{color:var(--pri);cursor:pointer;font-weight:500}
+.auth-switch a:hover{text-decoration:underline}
+.error-msg{background:var(--err-bg);color:var(--err);padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:16px;border:1px solid #fecaca}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Header -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">Q</div>
+    <div>
+      <div class="header-title">智能记忆问答助手</div>
+
+    </div>
+  </div>
+  <div class="header-actions">
+    <div v-if="user" class="user-badge">
+      <div class="user-avatar">{{ user.username[0].toUpperCase() }}</div>
+      {{ user.username }}
+    </div>
+    <button v-if="user" class="btn btn-sm" @click="logout">退出</button>
+    <button v-else class="btn btn-pri btn-sm" @click="showAuth=true;authMode='login';authError=''">登录</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="side-tabs">
+      <div class="side-tab" :class="{active:sideTab==='files'}" @click="sideTab='files'">📚 知识库</div>
+      <div class="side-tab" :class="{active:sideTab==='memories'}" @click="sideTab='memories';loadMemories()">🧠 记忆</div>
+    </div>
+    <div class="side-body">
+      <!-- Files Tab -->
+      <template v-if="sideTab==='files'">
+        <div v-if="files.length===0" style="text-align:center;padding:32px 0">
+          <div style="font-size:32px;opacity:.3;margin-bottom:8px">📂</div>
+          <div style="font-size:13px;color:var(--t3)">暂无文件<br>点击下方上传</div>
+        </div>
+        <div v-for="f in files" :key="f.filename" class="file-card">
+          <div class="file-card-top">
+            <div :class="['file-icon', getFileExt(f.filename)]">{{ getFileEmoji(f.filename) }}</div>
+            <div class="file-info">
+              <div class="file-name" :title="f.filename">{{ f.filename }}</div>
+              <div class="file-meta">{{ f.source }} · {{ f.total_chunks }} chunks</div>
+            </div>
+            <button class="file-del" @click="deleteFile(f.filename)" title="删除">✕</button>
+          </div>
+        </div>
+      </template>
+      <!-- Memories Tab -->
+      <template v-else>
+        <div v-if="memories.length===0" style="text-align:center;padding:32px 0">
+          <div style="font-size:32px;opacity:.3;margin-bottom:8px">🧠</div>
+          <div style="font-size:13px;color:var(--t3)">暂无记忆<br>与 Agent 对话时自动保存</div>
+        </div>
+        <div v-for="(m,i) in memories" :key="i" class="mem-card">
+          <span :class="['mem-type', m.metadata?.memory_type||'general']">{{ m.metadata?.memory_type||'general' }}</span>
+          <div class="mem-content">{{ m.content }}</div>
+          <div class="mem-time">{{ (m.metadata?.timestamp||'').substring(0,16).replace('T',' ') }}</div>
+        </div>
+      </template>
+    </div>
+    <div class="side-footer">
+      <div class="upload-zone" :class="{dragover:isDragOver}" @click="uploadFile" @dragover.prevent="isDragOver=true" @dragleave="isDragOver=false" @drop.prevent="onDrop">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">点击或拖拽上传文件<small>TXT / MD / PDF / DOCX / PPTX / 图片</small></div>
+        <div v-if="uploadStatus" class="upload-progress">{{ uploadStatus }}</div>
+      </div>
+      <input type="file" ref="fileInput" @change="onFileSelected" style="display:none" accept=".txt,.md,.pdf,.docx,.pptx,.markdown,.png,.jpg,.jpeg,.bmp,.tiff,.webp">
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-area">
+    <div class="chat-messages" ref="msgContainer">
+      <div v-if="messages.length===0&&!loading" class="chat-empty">
+        <div class="chat-empty-icon">💬</div>
+        <h3>开始对话吧</h3>
+        <p>输入问题，Agent 会自动搜索记忆和知识库来回答。<br>支持长期记忆、多文档 RAG 检索。</p>
+      </div>
+      <template v-for="(msg,i) in messages" :key="i">
+        <div v-if="msg.role==='system'" class="msg system">
+          <div class="msg-bubble">{{ msg.content }}</div>
+        </div>
+        <div v-else class="msg" :class="msg.role==='user'?'user':'bot'">
+          <div class="msg-avatar">{{ msg.role==='user'?'You':'AI' }}</div>
+          <div class="msg-bubble">{{ msg.content }}</div>
+        </div>
+      </template>
+      <div v-if="loading" class="msg bot">
+        <div class="msg-avatar">AI</div>
+        <div class="msg-bubble">
+          <div class="typing"><span></span><span></span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <div class="chat-input-inner">
+        <textarea v-model="input" @keydown.enter.exact.prevent="send" placeholder="输入消息，Enter 发送..." rows="1" ref="inputEl"></textarea>
+        <button class="send-btn" @click="send" :disabled="!input.trim()||loading">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Modal -->
+<div v-if="showAuth" class="overlay" @click.self="showAuth=false">
+  <div class="overlay-card">
+    <h2>{{ authMode==='login'?'欢迎回来':'创建账号' }}</h2>
+    <div class="subtitle">{{ authMode==='login'?'登录以使用记忆和知识库功能':'注册新账号开始使用' }}</div>
+    <div v-if="authError" class="error-msg">{{ authError }}</div>
+    <div class="field">
+      <label>用户名</label>
+      <input v-model="authForm.username" placeholder="输入用户名" @keydown.enter="authSubmit">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input v-model="authForm.password" type="password" placeholder="至少6位" @keydown.enter="authSubmit">
+    </div>
+    <button class="auth-btn" @click="authSubmit" :disabled="authLoading">{{ authLoading?'处理中...':(authMode==='login'?'登 录':'注 册') }}</button>
+    <div class="auth-switch">
+      {{ authMode==='login'?'没有账号？':'已有账号？' }}
+      <a @click="authMode=authMode==='login'?'register':'login';authError=''">{{ authMode==='login'?'立即注册':'立即登录' }}</a>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const API='';
+const{createApp,ref,reactive,onMounted,nextTick,watch}=Vue;
+
+createApp({
+setup(){
+const token=ref(localStorage.getItem('token')||'');
+const user=ref(null);
+const showAuth=ref(false);
+const authMode=ref('login');
+const authForm=reactive({username:'',password:''});
+const authError=ref('');
+const authLoading=ref(false);
+const input=ref('');
+const messages=ref([]);
+const loading=ref(false);
+const files=ref([]);
+const memories=ref([]);
+const sideTab=ref('files');
+const uploading=ref(false);
+const uploadStatus=ref('');
+const isDragOver=ref(false);
+const fileInput=ref(null);
+const msgContainer=ref(null);
+const inputEl=ref(null);
+
+function headers(){
+  const h={'Content-Type':'application/json'};
+  if(token.value)h['Authorization']='Bearer '+token.value;
+  return h;
+}
+async function api(path,opts={}){
+  const res=await fetch(API+path,{...opts,headers:{...headers(),...(opts.headers||{})}});
+  if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.detail||res.statusText)}
+  return res.json();
+}
+async function authSubmit(){
+  authError.value='';authLoading.value=true;
+  try{
+    const res=await fetch(API+'/auth/'+authMode.value,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(authForm)});
+    const d=await res.json();
+    if(!res.ok){authError.value=d.detail||'操作失败';return}
+    token.value=d.access_token;localStorage.setItem('token',d.access_token);
+    user.value=await api('/auth/me');
+    showAuth.value=false;loadFiles();
+  }catch(e){authError.value=e.message}
+  finally{authLoading.value=false}
+}
+function logout(){token.value='';user.value=null;localStorage.removeItem('token')}
+async function loadUser(){
+  if(!token.value)return;
+  try{user.value=await api('/auth/me');loadFiles()}catch{token.value='';localStorage.removeItem('token')}
+}
+async function loadFiles(){try{const d=await api('/knowledge/list');files.value=d.files||[]}catch{files.value=[]}}
+async function loadMemories(){
+  memories.value=[];
+  if(!user.value)return;
+  try{const d=await api('/knowledge/list');files.value=d.files||[]}catch{}
+  try{
+    const res=await fetch(API+'/chat',{method:'POST',headers:headers(),body:JSON.stringify({message:'列出我所有的长期记忆',user_id:String(user.value.id),session_id:'mem_'+Date.now()})});
+    const d=await res.json();
+  }catch{}
+}
+async function deleteFile(fn){
+  if(!confirm('确定删除 '+fn+' ?'))return;
+  try{await fetch(API+'/knowledge/delete/'+encodeURIComponent(fn),{method:'DELETE',headers:headers()});loadFiles()}catch(e){alert('删除失败: '+e.message)}
+}
+function uploadFile(){fileInput.value.click()}
+async function onFileSelected(e){const f=e.target.files[0];if(f)await doUpload(f);e.target.value=''}
+async function onDrop(e){isDragOver.value=false;const f=e.dataTransfer.files[0];if(f)await doUpload(f)}
+async function doUpload(file){
+  uploading.value=true;uploadStatus.value='正在处理 '+file.name+'...';
+  const fd=new FormData();fd.append('file',file);
+  const h={};if(token.value)h['Authorization']='Bearer '+token.value;
+  try{
+    const res=await fetch(API+'/knowledge/upload?user_id='+(user.value?user.value.id:'default_user'),{method:'POST',headers:h,body:fd});
+    const d=await res.json();
+    if(!res.ok){uploadStatus.value='✗ '+(d.detail||'上传失败')}else{
+      if(d.skipped){uploadStatus.value='⚠ '+file.name+' 已存在，跳过'}else{uploadStatus.value='✓ '+file.name+' 加载成功 ('+d.chunks+' 块)'}
+      loadFiles()
+    }
+  }catch(e){uploadStatus.value='✗ 上传失败: '+e.message}
+  finally{uploading.value=false;setTimeout(()=>uploadStatus.value='',4000)}
+}
+async function send(){
+  const txt=input.value.trim();if(!txt||loading.value)return;
+  messages.value.push({role:'user',content:txt});input.value='';loading.value=true;
+  await nextTick();scrollBottom();autoResize();
+  try{
+    const uid=user.value?String(user.value.id):'default_user';
+    const res=await fetch(API+'/chat',{method:'POST',headers:headers(),body:JSON.stringify({message:txt,user_id:uid,session_id:'chat'})});
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.detail||'请求失败');
+    messages.value.push({role:'assistant',content:d.reply});
+  }catch(e){messages.value.push({role:'system',content:'请求失败: '+e.message})}
+  finally{loading.value=false;await nextTick();scrollBottom()}
+}
+function scrollBottom(){nextTick(()=>{if(msgContainer.value)msgContainer.value.scrollTop=msgContainer.value.scrollHeight})}
+function autoResize(){if(!inputEl.value)return;inputEl.value.style.height='auto';inputEl.value.style.height=Math.min(inputEl.value.scrollHeight,140)+'px'}
+watch(input,()=>nextTick(autoResize));
+
+function getFileExt(fn){const ext=(fn||'').split('.').pop().toLowerCase();return['txt','pdf','docx','md','pptx','png','jpg','jpeg','bmp','webp'].includes(ext)?ext:'default'}
+function getFileEmoji(fn){const ext=getFileExt(fn);return{txt:'📄',pdf:'📕',docx:'📘',md:'📝',pptx:'📊',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',bmp:'🖼️',webp:'🖼️'}[ext]||'📄'}
+
+onMounted(()=>{loadUser();loadFiles()});
+
+return{user,showAuth,authMode,authForm,authError,authLoading,input,messages,loading,files,memories,sideTab,uploading,uploadStatus,isDragOver,fileInput,msgContainer,inputEl,authSubmit,logout,send,uploadFile,onFileSelected,onDrop,deleteFile,getFileExt,getFileEmoji}
+}
+}).mount('#app')
+</script>
+</body>
+</html>
